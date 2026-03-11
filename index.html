@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phản chiếu màn hình - TTĐHS</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { --primary: #00d2ff; --bg: #0f172a; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: white; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* Container chính */
+        #main-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: all 0.5s ease; }
+        
+        /* Khung hiển thị Video */
+        #video-wrapper { display: none; width: 100%; height: 100%; background: #000; position: relative; }
+        video { width: 100%; height: 100%; object-fit: contain; }
+
+        /* Giao diện chờ kết nối */
+        #setup-box { background: rgba(255, 255, 255, 0.05); padding: 2rem; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+        
+        .id-text { font-size: 2.5rem; font-weight: 700; color: var(--primary); letter-spacing: 5px; margin: 1rem 0; }
+        #qrcode { background: white; padding: 10px; border-radius: 10px; margin: 1.5rem auto; display: inline-block; }
+        
+        /* Footer bản quyền */
+        footer { padding: 1.5rem; text-align: center; background: rgba(0,0,0,0.3); border-top: 1px solid rgba(255,255,255,0.05); }
+        .title-main { font-size: 1.2rem; font-weight: 500; text-transform: uppercase; letter-spacing: 2px; color: var(--primary); }
+        .copyright { font-size: 0.8rem; opacity: 0.6; margin-top: 5px; }
+
+        /* Hiệu ứng khi đang kết nối */
+        .connected #setup-box { display: none; }
+        .connected #video-wrapper { display: flex; }
+    </style>
+</head>
+<body>
+
+    <div id="main-container">
+        <div id="setup-box">
+            <h2 style="margin:0; opacity:0.8;">MÃ KẾT NỐI</h2>
+            <div id="display-id" class="id-text">------</div>
+            <div id="qrcode"></div>
+            <p style="font-size: 0.9rem; opacity:0.7;">Mở App trên điện thoại và quét mã để bắt đầu</p>
+        </div>
+
+        <div id="video-wrapper">
+            <video id="remote-video" autoplay playsinline></video>
+        </div>
+    </div>
+
+    <footer>
+        <div class="title-main">Phản chiếu màn hình</div>
+        <div class="copyright">Bản quyền © 2026 by Phạm Hồng Long & Brown Eyes</div>
+    </footer>
+
+    <script>
+        // 1. Tạo ID ngẫu nhiên 6 ký tự
+        const generateID = () => Math.random().toString(36).substr(2, 6).toUpperCase();
+        const myPeerId = generateID();
+        document.getElementById('display-id').innerText = myPeerId;
+
+        // 2. Tạo mã QR
+        new QRCode(document.getElementById("qrcode"), {
+            text: myPeerId,
+            width: 180,
+            height: 180,
+            colorDark : "#000000",
+            colorLight : "#ffffff"
+        });
+
+        // 3. Khởi tạo PeerJS
+        const peer = new Peer(myPeerId);
+
+        peer.on('open', (id) => {
+            console.log('Sẵn sàng nhận kết nối với ID:', id);
+        });
+
+        // 4. Lắng nghe cuộc gọi từ App Flutter
+        peer.on('call', (call) => {
+            call.answer(); // Trả lời cuộc gọi
+            
+            call.on('stream', (remoteStream) => {
+                // Khi có luồng video: Ẩn giao diện chờ, hiện video
+                document.body.classList.add('connected');
+                const video = document.getElementById('remote-video');
+                video.srcObject = remoteStream;
+                video.play();
+            });
+
+            call.on('close', () => {
+                document.body.classList.remove('connected');
+            });
+        });
+
+        // Xử lý lỗi kết nối
+        peer.on('error', (err) => {
+            console.error('Lỗi kết nối:', err);
+            alert("Đã có lỗi xảy ra hoặc mã ID bị trùng. Vui lòng tải lại trang.");
+        });
+    </script>
+</body>
+</html>
